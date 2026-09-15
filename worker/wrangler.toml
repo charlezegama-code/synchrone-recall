@@ -1,0 +1,37 @@
+name = "synchrone-recall"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+
+# Frontend is built to ../frontend/dist and served directly by this Worker
+# (Workers static assets) rather than as a separate Cloudflare Pages project —
+# simplest single-deploy setup for this environment. See README for rationale.
+[assets]
+directory = "../frontend/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+[ai]
+binding = "AI"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "synchrone-recall-db"
+database_id = "d163e3fa-cec5-4c2f-b00f-1bc2a67d95f6"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "synchrone-recall-media"
+
+[[vectorize]]
+binding = "VECTORIZE_CHUNKS"
+index_name = "synchrone-recall-chunks"
+
+[[vectorize]]
+binding = "VECTORIZE_SUMMARIES"
+index_name = "synchrone-recall-summaries"
+
+[vars]
+# Set to "true" to force the D1-JSON cosine-similarity fallback path instead
+# of Vectorize, e.g. for local dev where Vectorize bindings aren't simulated.
+USE_D1_FALLBACK_SEARCH = "false"

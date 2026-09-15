@@ -1,0 +1,23 @@
+{
+  "name": "synchrone-recall-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "d1:migrate:local": "wrangler d1 execute synchrone-recall-db --local --file=./migrations/0001_init.sql",
+    "d1:migrate:remote": "wrangler d1 execute synchrone-recall-db --remote --file=./migrations/0001_init.sql",
+    "seed:local": "node seed/seed.mjs --local",
+    "seed:remote": "node seed/seed.mjs --remote",
+    "eval": "node seed/eval.mjs"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240925.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.104.0"
+  }
+}
