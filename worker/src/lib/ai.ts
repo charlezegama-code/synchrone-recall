@@ -17,13 +17,26 @@ export const MODELS = {
   EMBEDDING: "@cf/baai/bge-base-en-v1.5", // 768-dim, matches Vectorize index config
 } as const;
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
+}
+
 export async function transcribeAudio(
   ai: Ai,
   audioBytes: ArrayBuffer
 ): Promise<{ full_text: string; duration_seconds: number; segments: Segment[] }> {
-  const input = { audio: [...new Uint8Array(audioBytes)] };
-  // @ts-expect-error - Workers AI binding types lag behind the actual model catalog
-  const resp: any = await ai.run(MODELS.STT, input);
+  // ASSUMPTION: whisper-large-v3-turbo's current input schema wants `audio`
+  // as a base64-encoded string, not a raw byte array (which is what the
+  // older @cf/openai/whisper model accepted) — confirmed by a live 400 from
+  // the AI Gateway schema validator when a byte array was sent instead.
+  const input = { audio: arrayBufferToBase64(audioBytes) };
+  const resp: any = await ai.run(MODELS.STT as any, input as any);
 
   const full_text: string = resp.text ?? "";
 
