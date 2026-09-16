@@ -1,17 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { Upload, Clock, Calendar, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { api, formatDuration, type RecordingSummary } from "../lib/api";
 
-const statusDot: Record<string, string> = {
-  processed: "bg-emerald-600",
-  processing: "bg-indigo animate-pulse",
-  failed: "bg-red-500",
-};
-
-const statusLabel: Record<string, string> = {
-  processed: "Processed",
-  processing: "Processing",
-  failed: "Failed",
+const statusMeta: Record<string, { label: string; className: string; icon: typeof CheckCircle2 }> = {
+  processed: { label: "Processed", className: "bg-emerald-50 text-emerald-600", icon: CheckCircle2 },
+  processing: { label: "Processing", className: "bg-indigo-50 text-indigo-600", icon: Loader2 },
+  failed: { label: "Failed", className: "bg-red-50 text-red-600", icon: XCircle },
 };
 
 export default function Library() {
@@ -38,9 +34,6 @@ export default function Library() {
     return () => clearInterval(interval);
   }, [refresh]);
 
-  // Arriving from a source/match chip elsewhere: jump to that recording and
-  // reuse the same highlight-sweep motion as a fresh upload — the app's one
-  // reusable "something just happened here" cue.
   useEffect(() => {
     const target = params.get("highlight");
     if (!target || !recordings) return;
@@ -67,9 +60,12 @@ export default function Library() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-12 md:px-12 md:py-16">
-      <div className="mb-12 flex flex-wrap items-baseline justify-between gap-4">
-        <h1 className="text-4xl font-extrabold tracking-tight text-rhino md:text-5xl">Library</h1>
+    <div className="mx-auto max-w-5xl px-6 py-10 md:px-10 md:py-14">
+      <div className="mb-10 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-rhino md:text-4xl">Library</h1>
+          <p className="mt-1 text-[14.5px] text-rhino/50">Every recording, auto-indexed on upload.</p>
+        </div>
 
         <div>
           <input
@@ -82,56 +78,83 @@ export default function Library() {
           <button
             onClick={() => fileInput.current?.click()}
             disabled={uploading}
-            className="font-mono text-[13px] text-indigo underline-offset-4 transition hover:underline disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo to-indigo-600 px-4 py-2.5 text-[14px] font-semibold text-white shadow-md shadow-indigo/20 transition hover:brightness-110 disabled:opacity-60"
           >
-            {uploading ? "uploading…" : "+ upload recording"}
+            <Upload size={15} />
+            {uploading ? "Uploading…" : "Upload recording"}
           </button>
         </div>
       </div>
 
-      {error && <div className="mb-8 text-sm text-red-600">{error}</div>}
+      {error && (
+        <div className="mb-6 rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-600 ring-1 ring-red-100">
+          {error}
+        </div>
+      )}
 
-      {recordings === null && <div className="font-mono text-sm text-rhino/40">Loading…</div>}
+      {recordings === null && <div className="text-[14px] text-rhino/40">Loading…</div>}
 
       {recordings?.length === 0 && (
-        <div className="border-t border-hairline py-16 text-sm text-rhino/40">
+        <div className="rounded-2xl border border-dashed border-rhino/15 bg-white/50 py-16 text-center text-[14px] text-rhino/40">
           No recordings yet — upload one to get started.
         </div>
       )}
 
-      <div className="border-t border-hairline">
-        {recordings?.map((rec, i) => (
-          <div
-            key={rec.id}
-            ref={(el) => {
-              rowRefs.current[rec.id] = el;
-            }}
-            className={`grid grid-cols-[2.5rem_1fr] gap-x-4 gap-y-2 border-b border-hairline py-5 transition-colors hover:bg-black/[0.02] md:grid-cols-[3rem_1fr_11rem] ${
-              flashId === rec.id ? "highlight-sweep" : ""
-            }`}
-          >
-            <div className="font-mono text-sm text-rhino/30">{String(i + 1).padStart(2, "0")}</div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <AnimatePresence>
+          {recordings?.map((rec, i) => {
+            const meta = statusMeta[rec.status] ?? statusMeta.processing;
+            const StatusIcon = meta.icon;
+            return (
+              <motion.div
+                key={rec.id}
+                ref={(el: HTMLDivElement | null) => {
+                  rowRefs.current[rec.id] = el;
+                }}
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: Math.min(i * 0.05, 0.4), ease: "easeOut" }}
+                whileHover={{ y: -2 }}
+                className={`flex flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md ${
+                  flashId === rec.id ? "highlight-sweep" : ""
+                }`}
+              >
+                <div className="mb-2.5 flex items-start justify-between gap-3">
+                  <h3 className="min-w-0 truncate text-[15.5px] font-semibold text-rhino">{rec.file_name}</h3>
+                  <span
+                    className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium ${meta.className}`}
+                  >
+                    <StatusIcon size={11} className={rec.status === "processing" ? "animate-spin" : ""} />
+                    {meta.label}
+                  </span>
+                </div>
 
-            <div className="min-w-0">
-              <h3 className="truncate text-[17px] font-semibold text-rhino">{rec.file_name}</h3>
-              <p className="mt-1 line-clamp-2 max-w-xl text-[15px] leading-snug text-rhino/60">
-                {rec.problem_summary ?? (rec.status === "processing" ? "Analyzing…" : "—")}
-              </p>
-              {rec.topics.length > 0 && (
-                <p className="mt-2 font-mono text-[12px] text-rhino/40">{rec.topics.slice(0, 4).join("  ·  ")}</p>
-              )}
-            </div>
+                <p className="line-clamp-2 text-[13.5px] leading-relaxed text-rhino/55">
+                  {rec.problem_summary ?? (rec.status === "processing" ? "Analyzing…" : "—")}
+                </p>
 
-            <div className="col-span-2 flex items-center gap-4 font-mono text-[12px] text-rhino/45 md:col-span-1 md:flex-col md:items-end md:gap-1.5 md:text-right">
-              <span className="flex items-center gap-1.5">
-                <span className={`h-1.5 w-1.5 rounded-full ${statusDot[rec.status] ?? statusDot.processing}`} />
-                {statusLabel[rec.status] ?? rec.status}
-              </span>
-              <span>{formatDuration(rec.duration_seconds)}</span>
-              <span>{new Date(rec.upload_date).toLocaleDateString()}</span>
-            </div>
-          </div>
-        ))}
+                {rec.topics.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {rec.topics.slice(0, 3).map((t) => (
+                      <span key={t} className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] text-indigo-600">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-4 flex items-center gap-4 border-t border-hairline pt-3 font-mono text-[11.5px] text-rhino/40">
+                  <span className="flex items-center gap-1">
+                    <Clock size={11} /> {formatDuration(rec.duration_seconds)}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Calendar size={11} /> {new Date(rec.upload_date).toLocaleDateString()}
+                  </span>
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
       </div>
     </div>
   );
