@@ -1,13 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useSearchParams } from "react-router-dom";
 import { api, formatDuration, type RecordingSummary } from "../lib/api";
-import StatusBadge from "../components/StatusBadge";
+
+const statusDot: Record<string, string> = {
+  processed: "bg-emerald-600",
+  processing: "bg-indigo animate-pulse",
+  failed: "bg-red-500",
+};
+
+const statusLabel: Record<string, string> = {
+  processed: "Processed",
+  processing: "Processing",
+  failed: "Failed",
+};
 
 export default function Library() {
   const [recordings, setRecordings] = useState<RecordingSummary[] | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [flashId, setFlashId] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const [params] = useSearchParams();
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const refresh = useCallback(() => {
     api.listRecordings().then((r) => setRecordings(r.recordings)).catch((e) => setError(String(e)));
@@ -15,8 +29,6 @@ export default function Library() {
 
   useEffect(() => {
     refresh();
-    // Poll while anything is still processing so status flips to
-    // processed/failed without a manual refresh.
     const interval = setInterval(() => {
       setRecordings((current) => {
         if (current?.some((r) => r.status === "processing")) refresh();
@@ -26,12 +38,27 @@ export default function Library() {
     return () => clearInterval(interval);
   }, [refresh]);
 
+  // Arriving from a source/match chip elsewhere: jump to that recording and
+  // reuse the same highlight-sweep motion as a fresh upload — the app's one
+  // reusable "something just happened here" cue.
+  useEffect(() => {
+    const target = params.get("highlight");
+    if (!target || !recordings) return;
+    const el = rowRefs.current[target];
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setFlashId(target);
+    const t = setTimeout(() => setFlashId(null), 1800);
+    return () => clearTimeout(t);
+  }, [params, recordings]);
+
   const handleFile = async (file: File) => {
     setUploading(true);
     setError(null);
     try {
-      await api.upload(file);
+      const res = await api.upload(file);
       refresh();
+      setFlashId(res.id);
+      setTimeout(() => setFlashId(null), 1800);
     } catch (e) {
       setError("Upload failed. " + String(e));
     } finally {
@@ -40,14 +67,9 @@ export default function Library() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-brand-rhino">Library</h1>
-          <p className="mt-1 text-sm text-brand-rhino/60">
-            Every recording is transcribed, timecoded, and analyzed automatically on upload.
-          </p>
-        </div>
+    <div className="mx-auto max-w-4xl px-6 py-12 md:px-12 md:py-16">
+      <div className="mb-12 flex flex-wrap items-baseline justify-between gap-4">
+        <h1 className="text-4xl font-extrabold tracking-tight text-rhino md:text-5xl">Library</h1>
 
         <div>
           <input
@@ -60,70 +82,56 @@ export default function Library() {
           <button
             onClick={() => fileInput.current?.click()}
             disabled={uploading}
-            className="rounded-lg bg-brand-indigo px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-indigo-dark disabled:opacity-60"
+            className="font-mono text-[13px] text-indigo underline-offset-4 transition hover:underline disabled:opacity-50"
           >
-            {uploading ? "Uploading…" : "Upload recording"}
+            {uploading ? "uploading…" : "+ upload recording"}
           </button>
         </div>
       </div>
 
-      {error && (
-        <div className="mb-6 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
-          {error}
-        </div>
-      )}
+      {error && <div className="mb-8 text-sm text-red-600">{error}</div>}
 
-      {recordings === null && (
-        <div className="text-sm text-brand-rhino/50">Loading library…</div>
-      )}
+      {recordings === null && <div className="font-mono text-sm text-rhino/40">Loading…</div>}
 
       {recordings?.length === 0 && (
-        <div className="rounded-xl border border-dashed border-brand-rhino/20 bg-white/50 py-16 text-center text-sm text-brand-rhino/50">
+        <div className="border-t border-hairline py-16 text-sm text-rhino/40">
           No recordings yet — upload one to get started.
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <AnimatePresence>
-          {recordings?.map((rec, i) => (
-            <motion.div
-              key={rec.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04 }}
-              className="flex flex-col justify-between rounded-xl bg-white p-5 shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md"
-            >
-              <div>
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <h3 className="truncate text-sm font-semibold text-brand-rhino" title={rec.file_name}>
-                    {rec.file_name}
-                  </h3>
-                  <StatusBadge status={rec.status} />
-                </div>
+      <div className="border-t border-hairline">
+        {recordings?.map((rec, i) => (
+          <div
+            key={rec.id}
+            ref={(el) => {
+              rowRefs.current[rec.id] = el;
+            }}
+            className={`grid grid-cols-[2.5rem_1fr] gap-x-4 gap-y-2 border-b border-hairline py-5 transition-colors hover:bg-black/[0.02] md:grid-cols-[3rem_1fr_11rem] ${
+              flashId === rec.id ? "highlight-sweep" : ""
+            }`}
+          >
+            <div className="font-mono text-sm text-rhino/30">{String(i + 1).padStart(2, "0")}</div>
 
-                <p className="mb-3 line-clamp-3 text-xs leading-relaxed text-brand-rhino/60">
-                  {rec.problem_summary ?? (rec.status === "processing" ? "Analyzing…" : "—")}
-                </p>
+            <div className="min-w-0">
+              <h3 className="truncate text-[17px] font-semibold text-rhino">{rec.file_name}</h3>
+              <p className="mt-1 line-clamp-2 max-w-xl text-[15px] leading-snug text-rhino/60">
+                {rec.problem_summary ?? (rec.status === "processing" ? "Analyzing…" : "—")}
+              </p>
+              {rec.topics.length > 0 && (
+                <p className="mt-2 font-mono text-[12px] text-rhino/40">{rec.topics.slice(0, 4).join("  ·  ")}</p>
+              )}
+            </div>
 
-                <div className="flex flex-wrap gap-1.5">
-                  {rec.topics.slice(0, 4).map((t) => (
-                    <span
-                      key={t}
-                      className="rounded-full bg-brand-indigo-light px-2 py-0.5 text-[11px] font-medium text-brand-indigo-dark"
-                    >
-                      {t}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between border-t border-black/5 pt-3 text-xs text-brand-rhino/50">
-                <span>{new Date(rec.upload_date).toLocaleDateString()}</span>
-                <span>{formatDuration(rec.duration_seconds)}</span>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+            <div className="col-span-2 flex items-center gap-4 font-mono text-[12px] text-rhino/45 md:col-span-1 md:flex-col md:items-end md:gap-1.5 md:text-right">
+              <span className="flex items-center gap-1.5">
+                <span className={`h-1.5 w-1.5 rounded-full ${statusDot[rec.status] ?? statusDot.processing}`} />
+                {statusLabel[rec.status] ?? rec.status}
+              </span>
+              <span>{formatDuration(rec.duration_seconds)}</span>
+              <span>{new Date(rec.upload_date).toLocaleDateString()}</span>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
