@@ -6,7 +6,7 @@ import { SAMPLE_TRANSCRIPTS } from "./transcripts.mjs";
 const isLocal = process.argv.includes("--local");
 const BASE_URL = isLocal
   ? "http://127.0.0.1:8787"
-  : process.env.SEED_BASE_URL ?? "https://synchrone-recall.synagogue.workers.dev";
+  : process.env.SEED_BASE_URL ?? "https://synchrone-recall.vaultx.workers.dev";
 
 const WORDS_PER_SECOND = 150 / 60; // ~150 wpm speaking rate assumption
 const WORDS_PER_SEGMENT = 12;

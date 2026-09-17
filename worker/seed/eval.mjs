@@ -1,7 +1,7 @@
 // Minimal evaluation harness against the deployed API. Run with:
 //   node seed/eval.mjs
 // Assumes the 5 sample transcripts have already been seeded (seed/seed.mjs).
-const BASE_URL = process.env.SEED_BASE_URL ?? "https://synchrone-recall.synagogue.workers.dev";
+const BASE_URL = process.env.SEED_BASE_URL ?? "https://synchrone-recall.vaultx.workers.dev";
 const NO_ANSWER_TEXT = "Insufficient evidence was found in the available recordings.";
 
 const cases = [

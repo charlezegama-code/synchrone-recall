@@ -2,7 +2,7 @@
 
 A proactive knowledge system for Synchrone's consulting engagements — not a reactive chatbot. Every recording is auto-transcribed, timecoded, and analyzed at upload; when a new project comes in, the system surfaces the most similar past engagements before anyone has to search for them.
 
-**Live app:** https://synchrone-recall.synagogue.workers.dev
+**Live app:** https://synchrone-recall.vaultx.workers.dev
 **Repo:** https://github.com/charlezegama-code/synchrone-recall
 
 ## Stack
