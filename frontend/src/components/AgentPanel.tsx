@@ -240,7 +240,8 @@ export default function AgentPanel({
   if (turns.length === 0) {
     return (
       <div className="page-enter mx-auto flex h-full max-w-2xl flex-col items-center justify-center px-6">
-        <h1 className="text-center text-[34px] font-bold leading-tight tracking-tight text-rhino md:text-[40px]">
+        <ThinkingOrb state="breathing" size={64} theme="light" paused={false} aria-label="Recall, idle" />
+        <h1 className="mt-4 text-center text-[34px] font-bold leading-tight tracking-tight text-rhino md:text-[40px]">
           {emptyHeadline}
         </h1>
         <p className="mt-2 max-w-md text-center text-[15px] leading-[1.6] text-rhino/50">{emptySubtitle}</p>
