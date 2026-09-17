@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { ThinkingOrb } from "thinking-orbs";
 import { Upload, Clock, Calendar, Search, XCircle } from "lucide-react";
 import { api, formatDuration, type RecordingSummary } from "../lib/api";
+import RecordingDetailModal from "../components/RecordingDetailModal";
 
 export default function Library() {
   const [recordings, setRecordings] = useState<RecordingSummary[] | null>(null);
@@ -10,6 +11,7 @@ export default function Library() {
   const [error, setError] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const [params] = useSearchParams();
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -135,7 +137,11 @@ export default function Library() {
             ref={(el: HTMLDivElement | null) => {
               rowRefs.current[rec.id] = el;
             }}
-            className={`card-hover flex flex-col rounded-xl border border-border-card bg-white p-5 ${
+            role="button"
+            tabIndex={0}
+            onClick={() => setSelectedId(rec.id)}
+            onKeyDown={(e) => e.key === "Enter" && setSelectedId(rec.id)}
+            className={`card-hover flex cursor-pointer flex-col rounded-xl border border-border-card bg-white p-5 text-left ${
               flashId === rec.id ? "highlight-sweep" : ""
             }`}
           >
@@ -185,6 +191,8 @@ export default function Library() {
           </div>
         ))}
       </div>
+
+      {selectedId && <RecordingDetailModal id={selectedId} onClose={() => setSelectedId(null)} />}
     </div>
   );
 }

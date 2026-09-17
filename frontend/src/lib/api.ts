@@ -34,6 +34,21 @@ export type ProjectMatch = {
   timestamp: number;
 };
 
+export type TranscriptSegment = { start: number; end: number; text: string };
+
+export type RecordingDetail = {
+  recording: {
+    id: string;
+    file_name: string;
+    upload_date: string;
+    duration_seconds: number | null;
+    status: "processing" | "processed" | "failed";
+    stage: PipelineStage;
+  };
+  transcript: { full_text: string; segments: TranscriptSegment[] } | null;
+  analysis: { title: string | null; topics: string[]; problem_summary: string; key_entities: string[] } | null;
+};
+
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
   return res.json() as Promise<T>;
@@ -42,7 +57,7 @@ async function json<T>(res: Response): Promise<T> {
 export const api = {
   listRecordings: () => fetch("/api/recordings").then((r) => json<{ recordings: RecordingSummary[] }>(r)),
 
-  getRecording: (id: string) => fetch(`/api/recordings/${id}`).then((r) => json<any>(r)),
+  getRecording: (id: string) => fetch(`/api/recordings/${id}`).then((r) => json<RecordingDetail>(r)),
 
   upload: (file: File) => {
     const form = new FormData();
