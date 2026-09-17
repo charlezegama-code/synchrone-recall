@@ -4,9 +4,10 @@ export default function QA() {
   return (
     <AgentPanel
       mode="qa"
-      title="Ask"
-      subtitle="Retrieves the 5 most relevant transcript chunks and answers strictly from that context."
+      emptyHeadline="What do you want to find?"
+      emptySubtitle="Ask in plain language — Recall answers strictly from what was actually discussed."
       placeholder="How did we resolve the checkout latency issue?"
+      inputVariant="input"
     />
   );
 }

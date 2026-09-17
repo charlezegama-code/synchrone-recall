@@ -1,9 +1,13 @@
+export type PipelineStage = "cleaning" | "analyzing" | "chunking" | "embedding" | null;
+
 export type RecordingSummary = {
   id: string;
   file_name: string;
+  title: string | null;
   upload_date: string;
   duration_seconds: number | null;
   status: "processing" | "processed" | "failed";
+  stage: PipelineStage;
   topics: string[];
   problem_summary: string | null;
 };
@@ -22,6 +26,7 @@ export type QAResult = {
 
 export type ProjectMatch = {
   file_name: string;
+  title: string;
   recording_id: string;
   problem_summary: string;
   topics: string[];
