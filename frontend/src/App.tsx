@@ -5,6 +5,7 @@ import OnboardingFlow from "./components/OnboardingFlow";
 import Library from "./pages/Library";
 import QA from "./pages/QA";
 import NewProject from "./pages/NewProject";
+import Record from "./pages/Record";
 import { hasOnboarded } from "./lib/onboarding";
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/" element={<Library />} />
           <Route path="/ask" element={<QA />} />
           <Route path="/new-project" element={<NewProject />} />
+          <Route path="/record" element={<Record />} />
         </Routes>
       </Shell>
     </BrowserRouter>
