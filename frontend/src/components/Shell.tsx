@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Library as LibraryIcon, MessageCircle, SearchCheck } from "lucide-react";
 import type { ReactNode } from "react";
+import Logo from "./Logo";
 
 const navItems = [
   { to: "/", label: "Library", icon: LibraryIcon },
@@ -14,10 +15,11 @@ export default function Shell({ children }: { children: ReactNode }) {
     <div className="flex h-screen flex-col overflow-hidden md:flex-row">
       <aside className="flex shrink-0 flex-col justify-between border-b border-white/10 bg-gradient-to-b from-rhino to-[#1e3044] px-5 py-4 text-white md:h-screen md:w-60 md:border-b-0 md:border-r md:px-5 md:py-7">
         <div className="flex items-center justify-between md:flex-col md:items-stretch md:gap-9">
-          {/* Logo ships on a white background, so it sits inside its own white
-              plate rather than directly on the dark rail. */}
+          {/* The wordmark itself has no background (transparent SVG), but its
+              navy/indigo palette is tuned for a light surface, so it sits on
+              a small light plate rather than directly on the dark rail. */}
           <div className="inline-flex w-fit items-center rounded-lg bg-white px-2.5 py-2 shadow-sm">
-            <img src="/synchrone-recall-logo.png" alt="Synchrone Recall" height="32" className="h-8 w-auto" />
+            <Logo className="h-6 w-auto" />
           </div>
 
           <nav className="flex items-center gap-1 md:flex-col md:items-stretch md:gap-1">
