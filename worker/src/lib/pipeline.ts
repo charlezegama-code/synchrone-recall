@@ -36,6 +36,8 @@ export async function runAnalysisAndEmbedding(
   duration_seconds: number
 ) {
   try {
+    await env.DB.prepare("UPDATE recordings SET stage = 'cleaning' WHERE id = ?").bind(recordingId).run();
+
     await env.DB.prepare(
       "INSERT INTO transcripts (recording_id, full_text, segments_json) VALUES (?, ?, ?)"
     ).bind(recordingId, full_text, JSON.stringify(segments)).run();
@@ -44,14 +46,17 @@ export async function runAnalysisAndEmbedding(
       .bind(duration_seconds, recordingId)
       .run();
 
+    await env.DB.prepare("UPDATE recordings SET stage = 'analyzing' WHERE id = ?").bind(recordingId).run();
+
     const analysis = await analyzeTranscript(env.AI, full_text);
     const summaryEmbedding = await embedText(env.AI, analysis.problem_summary);
 
     await env.DB.prepare(
-      `INSERT INTO analysis (recording_id, topics_json, problem_summary, key_entities_json, summary_embedding_json)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO analysis (recording_id, title, topics_json, problem_summary, key_entities_json, summary_embedding_json)
+       VALUES (?, ?, ?, ?, ?, ?)`
     ).bind(
       recordingId,
+      analysis.title,
       JSON.stringify(analysis.topics),
       analysis.problem_summary,
       JSON.stringify(analysis.key_entities),
@@ -66,7 +71,12 @@ export async function runAnalysisAndEmbedding(
       },
     ]).catch((err) => console.error("Vectorize summary upsert failed (D1 fallback still holds data):", err));
 
+    await env.DB.prepare("UPDATE recordings SET stage = 'chunking' WHERE id = ?").bind(recordingId).run();
+
     const chunks = buildChunks(segments);
+
+    await env.DB.prepare("UPDATE recordings SET stage = 'embedding' WHERE id = ?").bind(recordingId).run();
+
     const chunkEmbeddings = await embedTextBatch(env.AI, chunks.map((c) => c.chunk_text));
 
     const insertChunk = env.DB.prepare(
@@ -100,12 +110,12 @@ export async function runAnalysisAndEmbedding(
       }))
     ).catch((err) => console.error("Vectorize chunk upsert failed (D1 fallback still holds data):", err));
 
-    await env.DB.prepare("UPDATE recordings SET status = 'processed' WHERE id = ?")
+    await env.DB.prepare("UPDATE recordings SET status = 'processed', stage = NULL WHERE id = ?")
       .bind(recordingId)
       .run();
   } catch (err) {
     console.error("Pipeline failed for recording", recordingId, err);
-    await env.DB.prepare("UPDATE recordings SET status = 'failed' WHERE id = ?")
+    await env.DB.prepare("UPDATE recordings SET status = 'failed', stage = NULL WHERE id = ?")
       .bind(recordingId)
       .run();
     throw err; // surface to direct callers (e.g. the seed route); runPipeline's own catch swallows it for the fire-and-forget upload path

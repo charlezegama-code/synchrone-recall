@@ -18,10 +18,13 @@ export type Chunk = {
 };
 
 export type AnalysisResult = {
+  title: string;
   topics: string[];
   problem_summary: string;
   key_entities: string[];
 };
+
+export type PipelineStage = "cleaning" | "analyzing" | "chunking" | "embedding";
 
 export type Recording = {
   id: string;
@@ -29,4 +32,5 @@ export type Recording = {
   upload_date: string;
   duration_seconds: number | null;
   status: "processing" | "processed" | "failed";
+  stage: PipelineStage | null;
 };

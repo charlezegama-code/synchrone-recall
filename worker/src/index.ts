@@ -13,8 +13,8 @@ const NO_ANSWER_TEXT = "Insufficient evidence was found in the available recordi
 
 app.get("/api/recordings", async (c) => {
   const { results } = await c.env.DB.prepare(
-    `SELECT r.id, r.file_name, r.upload_date, r.duration_seconds, r.status,
-            a.topics_json, a.problem_summary
+    `SELECT r.id, r.file_name, r.upload_date, r.duration_seconds, r.status, r.stage,
+            a.title, a.topics_json, a.problem_summary
      FROM recordings r
      LEFT JOIN analysis a ON a.recording_id = r.id
      ORDER BY r.upload_date DESC`
@@ -23,9 +23,11 @@ app.get("/api/recordings", async (c) => {
   const recordings = results.map((r: any) => ({
     id: r.id,
     file_name: r.file_name,
+    title: r.title ?? null,
     upload_date: r.upload_date,
     duration_seconds: r.duration_seconds,
     status: r.status,
+    stage: r.stage ?? null,
     topics: r.topics_json ? JSON.parse(r.topics_json) : [],
     problem_summary: r.problem_summary ?? null,
   }));
@@ -48,6 +50,7 @@ app.get("/api/recordings/:id", async (c) => {
       : null,
     analysis: analysis
       ? {
+          title: analysis.title ?? null,
           topics: JSON.parse(String(analysis.topics_json)),
           problem_summary: analysis.problem_summary,
           key_entities: JSON.parse(String(analysis.key_entities_json)),
@@ -82,10 +85,16 @@ app.post("/api/recordings/upload", async (c) => {
 
 // Seeds a synthetic sample recording (text + segments already "transcribed")
 // through the real analysis/embedding pipeline, bypassing Workers AI STT.
-// INTERNAL/DEMO ONLY — unauthenticated by design since this is a private
-// consulting-firm tool seeded once at setup; do not expose in a public
-// deployment without an auth check.
+// INTERNAL/DEMO ONLY — gated by a shared secret query param, not real auth,
+// just to stop accidental/automated triggers from writing demo rows into the
+// live library. Rotate/remove before any real production hardening pass.
+const DEV_SEED_SECRET = "recall-dev";
+
 app.post("/api/dev/seed", async (c) => {
+  if (c.req.query("secret") !== DEV_SEED_SECRET) {
+    return c.json({ error: "forbidden" }, 403);
+  }
+
   const body = await c.req.json<{
     file_name: string;
     upload_date?: string;
@@ -150,7 +159,7 @@ app.post("/api/match", async (c) => {
 
   const recordingIds = matches.map((m) => m.recording_id);
   const details = await c.env.DB.prepare(
-    `SELECT r.id, r.file_name, a.problem_summary, a.topics_json,
+    `SELECT r.id, r.file_name, a.title, a.problem_summary, a.topics_json,
             (SELECT MIN(start_timestamp) FROM chunks WHERE recording_id = r.id) AS entry_timestamp
      FROM recordings r
      JOIN analysis a ON a.recording_id = r.id
@@ -165,6 +174,7 @@ app.post("/api/match", async (c) => {
       if (!d) return null;
       return {
         file_name: d.file_name,
+        title: d.title ?? d.file_name,
         recording_id: m.recording_id,
         problem_summary: d.problem_summary,
         topics: JSON.parse(d.topics_json),

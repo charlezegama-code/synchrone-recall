@@ -27,7 +27,7 @@ function toSegments(fullText) {
 
 async function seedOne(sample) {
   const { segments, duration_seconds } = toSegments(sample.full_text);
-  const res = await fetch(`${BASE_URL}/api/dev/seed`, {
+  const res = await fetch(`${BASE_URL}/api/dev/seed?secret=recall-dev`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

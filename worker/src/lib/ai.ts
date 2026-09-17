@@ -70,7 +70,7 @@ export async function transcribeAudio(
 
 const EXTRACTION_PROMPT = (transcript: string) => `You are analyzing a consulting/engineering engagement recording transcript.
 Return STRICT JSON only, no prose, no markdown fences, matching this schema exactly:
-{"topics": ["short topic tag", ...], "problem_summary": "2-4 sentence summary of the problem discussed", "key_entities": ["technology, client, or system named"]}
+{"title": "short 4-8 word meeting title", "topics": ["short topic tag", ...], "problem_summary": "2-4 sentence summary of the problem discussed", "key_entities": ["technology, client, or system named"]}
 
 Transcript:
 ${transcript}`;
@@ -109,12 +109,13 @@ export function parseAnalysisJson(raw: string): AnalysisResult {
   try {
     const parsed = JSON.parse(cleaned);
     return {
+      title: typeof parsed.title === "string" && parsed.title ? parsed.title : "Untitled recording",
       topics: Array.isArray(parsed.topics) ? parsed.topics : [],
       problem_summary: typeof parsed.problem_summary === "string" ? parsed.problem_summary : "",
       key_entities: Array.isArray(parsed.key_entities) ? parsed.key_entities : [],
     };
   } catch {
-    return { topics: [], problem_summary: cleaned.slice(0, 500), key_entities: [] };
+    return { title: "Untitled recording", topics: [], problem_summary: cleaned.slice(0, 500), key_entities: [] };
   }
 }
 
