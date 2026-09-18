@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ThinkingOrb } from "thinking-orbs";
-import { Upload, Clock, Calendar, Search, XCircle } from "lucide-react";
+import { Upload, Clock, Calendar, Search, XCircle, Trash2 } from "lucide-react";
 import { api, formatDuration, type RecordingSummary } from "../lib/api";
 import RecordingDetailModal from "../components/RecordingDetailModal";
 
@@ -12,6 +12,7 @@ export default function Library() {
   const [flashId, setFlashId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const [params] = useSearchParams();
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -53,6 +54,24 @@ export default function Library() {
       setError("Upload failed. " + String(e));
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleDelete = async (rec: RecordingSummary, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const label = rec.title ?? rec.file_name;
+    if (!window.confirm(`Delete "${label}"? This removes the recording, its transcript, and its analysis permanently.`)) {
+      return;
+    }
+    setDeletingId(rec.id);
+    try {
+      await api.deleteRecording(rec.id);
+      setRecordings((cur) => cur?.filter((r) => r.id !== rec.id) ?? cur);
+      if (selectedId === rec.id) setSelectedId(null);
+    } catch (e) {
+      setError("Delete failed. " + String(e));
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -141,7 +160,7 @@ export default function Library() {
             tabIndex={0}
             onClick={() => setSelectedId(rec.id)}
             onKeyDown={(e) => e.key === "Enter" && setSelectedId(rec.id)}
-            className={`card-hover flex cursor-pointer flex-col rounded-xl border border-border-card bg-white p-5 text-left ${
+            className={`card-hover group flex cursor-pointer flex-col rounded-xl border border-border-card bg-white p-5 text-left ${
               flashId === rec.id ? "highlight-sweep" : ""
             }`}
           >
@@ -149,21 +168,33 @@ export default function Library() {
               <h3 className="min-w-0 truncate text-[16px] font-semibold text-rhino">
                 {rec.title ?? rec.file_name}
               </h3>
-              {rec.status === "processed" && (
-                <span className="flex shrink-0 items-center gap-1.5 text-[12px] font-medium text-emerald-600">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Ready
-                </span>
-              )}
-              {rec.status === "processing" && (
-                <span className="flex shrink-0 items-center gap-1.5 text-[12px] font-medium text-indigo">
-                  <ThinkingOrb state="working" size={20} theme="light" /> Processing
-                </span>
-              )}
-              {rec.status === "failed" && (
-                <span className="flex shrink-0 items-center gap-1.5 text-[12px] font-medium text-red-500">
-                  <span className="h-1.5 w-1.5 rounded-full bg-red-500" /> Failed
-                </span>
-              )}
+
+              <div className="flex shrink-0 items-center gap-2">
+                {rec.status === "processed" && (
+                  <span className="flex items-center gap-1.5 text-[12px] font-medium text-emerald-600">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Ready
+                  </span>
+                )}
+                {rec.status === "processing" && (
+                  <span className="flex items-center gap-1.5 text-[12px] font-medium text-indigo">
+                    <ThinkingOrb state="working" size={20} theme="light" /> Processing
+                  </span>
+                )}
+                {rec.status === "failed" && (
+                  <span className="flex items-center gap-1.5 text-[12px] font-medium text-red-500">
+                    <span className="h-1.5 w-1.5 rounded-full bg-red-500" /> Failed
+                  </span>
+                )}
+
+                <button
+                  onClick={(e) => handleDelete(rec, e)}
+                  disabled={deletingId === rec.id}
+                  aria-label={`Delete ${rec.title ?? rec.file_name}`}
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-rhino/25 opacity-0 transition hover:bg-red-50 hover:text-red-500 focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-50"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </div>
 
             <p className="line-clamp-2 text-[14px] leading-[1.6] text-rhino/55">

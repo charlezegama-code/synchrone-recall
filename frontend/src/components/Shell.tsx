@@ -1,9 +1,10 @@
 import { NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { Library as LibraryIcon, MessageCircle, SearchCheck, Mic, MessageSquareText } from "lucide-react";
+import { Library as LibraryIcon, MessageCircle, SearchCheck, Mic, MessageSquareText, Settings } from "lucide-react";
 import type { ReactNode } from "react";
 import { getRecentConversations, type RecentConversation } from "../lib/conversations";
+import SettingsPanel from "./SettingsPanel";
 
 const navItems = [
   { to: "/", label: "Library", icon: LibraryIcon },
@@ -28,6 +29,7 @@ function useRecentConversations(): RecentConversation[] {
 
 export default function Shell({ children }: { children: ReactNode }) {
   const recent = useRecentConversations();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden md:flex-row">
@@ -91,12 +93,28 @@ export default function Shell({ children }: { children: ReactNode }) {
           )}
         </div>
 
-        <div className="px-5 pb-5 font-mono text-[11px] text-sidebar-muted/50">Team 29</div>
+        <div className="flex items-center justify-between px-5 pb-5">
+          <span className="font-mono text-[11px] text-sidebar-muted/50">Team 29</span>
+          <button
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Appearance settings"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-sidebar-muted/60 transition hover:bg-white/10 hover:text-white"
+          >
+            <Settings size={15} />
+          </button>
+        </div>
       </aside>
 
       {/* Mobile top bar — logo only, nav lives in the floating bottom tab bar */}
-      <header className="flex shrink-0 items-center border-b border-hairline bg-canvas px-4 py-3 md:hidden">
+      <header className="flex shrink-0 items-center justify-between border-b border-hairline bg-canvas px-4 py-3 md:hidden">
         <img src="/synchrone-recall-logo.png" alt="Synchrone Recall" height="22" className="h-[18px] w-auto" />
+        <button
+          onClick={() => setSettingsOpen(true)}
+          aria-label="Appearance settings"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-rhino/40 transition hover:bg-black/5 hover:text-rhino"
+        >
+          <Settings size={17} />
+        </button>
       </header>
 
       <main className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-canvas pb-24 md:pb-0">{children}</main>
@@ -138,6 +156,8 @@ export default function Shell({ children }: { children: ReactNode }) {
           );
         })}
       </nav>
+
+      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }

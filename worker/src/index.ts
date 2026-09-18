@@ -83,6 +83,41 @@ app.post("/api/recordings/upload", async (c) => {
   return c.json({ id, file_name: file.name, status: "processing" }, 202);
 });
 
+app.delete("/api/recordings/:id", async (c) => {
+  const id = c.req.param("id");
+
+  const recording = await c.env.DB.prepare("SELECT id FROM recordings WHERE id = ?").bind(id).first();
+  if (!recording) return c.json({ error: "not found" }, 404);
+
+  const chunkRows = await c.env.DB.prepare("SELECT id FROM chunks WHERE recording_id = ?")
+    .bind(id)
+    .all<{ id: string }>();
+  const chunkIds = chunkRows.results.map((r) => r.id);
+
+  await c.env.DB.batch([
+    c.env.DB.prepare("DELETE FROM chunks WHERE recording_id = ?").bind(id),
+    c.env.DB.prepare("DELETE FROM analysis WHERE recording_id = ?").bind(id),
+    c.env.DB.prepare("DELETE FROM transcripts WHERE recording_id = ?").bind(id),
+    c.env.DB.prepare("DELETE FROM recordings WHERE id = ?").bind(id),
+  ]);
+
+  if (chunkIds.length > 0) {
+    await c.env.VECTORIZE_CHUNKS.deleteByIds(chunkIds).catch((err) =>
+      console.error("Vectorize chunk delete failed (D1 rows already removed):", err)
+    );
+  }
+  await c.env.VECTORIZE_SUMMARIES.deleteByIds([id]).catch((err) =>
+    console.error("Vectorize summary delete failed (D1 rows already removed):", err)
+  );
+
+  const objects = await c.env.MEDIA.list({ prefix: `recordings/${id}/` });
+  await Promise.all(objects.objects.map((o) => c.env.MEDIA.delete(o.key))).catch((err) =>
+    console.error("R2 cleanup failed (DB/index rows already removed):", err)
+  );
+
+  return c.json({ success: true });
+});
+
 // Seeds a synthetic sample recording (text + segments already "transcribed")
 // through the real analysis/embedding pipeline, bypassing Workers AI STT.
 // INTERNAL/DEMO ONLY — gated by a shared secret query param, not real auth,

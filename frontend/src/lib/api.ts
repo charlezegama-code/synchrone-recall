@@ -59,6 +59,9 @@ export const api = {
 
   getRecording: (id: string) => fetch(`/api/recordings/${id}`).then((r) => json<RecordingDetail>(r)),
 
+  deleteRecording: (id: string) =>
+    fetch(`/api/recordings/${id}`, { method: "DELETE" }).then((r) => json<{ success: true }>(r)),
+
   upload: (file: File) => {
     const form = new FormData();
     form.append("file", file);
