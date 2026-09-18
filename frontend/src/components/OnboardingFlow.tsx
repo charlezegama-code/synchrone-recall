@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Library, MessageCircle, Sparkles, ArrowRight } from "lucide-react";
-import { completeOnboarding, type OnboardingUser } from "../lib/onboarding";
+
+type OnboardingUser = { name: string; email: string };
 
 const steps = [
   {
@@ -173,10 +174,7 @@ export default function OnboardingFlow({ onComplete }: { onComplete: () => void 
         {phase === "signup" ? (
           <SignupPanel
             key="signup-panel"
-            onNext={(user) => {
-              completeOnboarding(user);
-              setPhase("tutorial");
-            }}
+            onNext={() => setPhase("tutorial")}
           />
         ) : (
           <TutorialPanel key="tutorial-panel" onDone={onComplete} />

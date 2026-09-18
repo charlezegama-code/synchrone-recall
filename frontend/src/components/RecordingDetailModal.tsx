@@ -1,10 +1,17 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThinkingOrb } from "thinking-orbs";
-import { X, Clock, Calendar } from "lucide-react";
+import { X, Clock, Calendar, Quote } from "lucide-react";
 import { api, formatDuration, formatTimestamp, type RecordingDetail } from "../lib/api";
 
-export default function RecordingDetailModal({ id, onClose }: { id: string; onClose: () => void }) {
+type Props = {
+  id: string;
+  onClose: () => void;
+  /** When set (from a source chip), the matching transcript excerpt is pulled to the top and highlighted. */
+  focusRange?: { start: number; end: number } | null;
+};
+
+export default function RecordingDetailModal({ id, onClose, focusRange }: Props) {
   const [detail, setDetail] = useState<RecordingDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,6 +32,10 @@ export default function RecordingDetailModal({ id, onClose }: { id: string; onCl
   }, [onClose]);
 
   const title = detail?.analysis?.title ?? detail?.recording.file_name;
+  const segments = detail?.transcript?.segments ?? [];
+  const inRange = (s: { start: number; end: number }) =>
+    !!focusRange && s.end >= focusRange.start && s.start <= focusRange.end;
+  const excerpt = focusRange ? segments.filter(inRange) : [];
 
   return (
     <AnimatePresence>
@@ -35,7 +46,7 @@ export default function RecordingDetailModal({ id, onClose }: { id: string; onCl
         exit={{ opacity: 0 }}
         transition={{ duration: 0.15 }}
         onClick={onClose}
-        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-rhino/40 px-4 py-10 backdrop-blur-sm"
+        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-rhino-deep/50 px-4 py-6 backdrop-blur-sm md:py-10"
       >
         <motion.div
           key="panel"
@@ -44,7 +55,7 @@ export default function RecordingDetailModal({ id, onClose }: { id: string; onCl
           exit={{ opacity: 0, y: 8, scale: 0.98 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-2xl rounded-2xl bg-white shadow-xl"
+          className="elev-2 w-full max-w-2xl overflow-hidden rounded-2xl bg-surface"
         >
           {!detail && !error && (
             <div className="flex items-center gap-3 p-10">
@@ -66,33 +77,42 @@ export default function RecordingDetailModal({ id, onClose }: { id: string; onCl
             <>
               <div className="flex items-start justify-between gap-4 border-b border-hairline p-6">
                 <div className="min-w-0">
-                  <h2 className="text-[24px] font-bold leading-tight text-rhino">{title}</h2>
-                  <div className="mt-2 flex items-center gap-4 text-[13px] text-rhino/45">
+                  <h2 className="text-[24px] font-bold leading-[1.15] tracking-tight text-rhino">{title}</h2>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-rhino/45">
                     <span className="flex items-center gap-1.5">
                       <Clock size={12} /> {formatDuration(detail.recording.duration_seconds)}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <Calendar size={12} /> {new Date(detail.recording.upload_date).toLocaleDateString()}
                     </span>
-                    <span className="truncate text-rhino/30">{detail.recording.file_name}</span>
+                    <span className="max-w-full truncate text-rhino/30">{detail.recording.file_name}</span>
                   </div>
                 </div>
                 <button
                   onClick={onClose}
                   aria-label="Close"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-rhino/40 transition hover:bg-canvas hover:text-rhino"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-rhino/40 transition hover:bg-canvas hover:text-rhino"
                 >
                   <X size={18} />
                 </button>
               </div>
 
               <div className="scrollbar-thin max-h-[65vh] overflow-y-auto p-6">
+                {excerpt.length > 0 && (
+                  <div className="mb-6 rounded-xl border-l-[3px] border-gold bg-gold-soft/60 p-4">
+                    <p className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold text-gold">
+                      <Quote size={12} /> Cited excerpt · {formatTimestamp(focusRange!.start)}–{formatTimestamp(focusRange!.end)}
+                    </p>
+                    <p className="text-[15px] leading-[1.6] text-rhino">{excerpt.map((s) => s.text).join(" ")}</p>
+                  </div>
+                )}
+
                 {detail.analysis && (
                   <>
                     {detail.analysis.topics.length > 0 && (
                       <div className="mb-5 flex flex-wrap gap-1.5">
                         {detail.analysis.topics.map((t) => (
-                          <span key={t} className="rounded-full bg-indigo-50 px-2.5 py-1 text-[12px] text-indigo-600">
+                          <span key={t} className="rounded-full bg-indigo-50 px-2.5 py-1 text-[12px] font-medium text-indigo-600">
                             {t}
                           </span>
                         ))}
@@ -116,16 +136,16 @@ export default function RecordingDetailModal({ id, onClose }: { id: string; onCl
                   </>
                 )}
 
-                {detail.transcript && detail.transcript.segments.length > 0 && (
+                {segments.length > 0 && (
                   <div className="mt-6 border-t border-hairline pt-5">
                     <p className="mb-3 text-[13px] font-medium text-rhino/40">Transcript</p>
                     <div className="flex flex-col gap-3">
-                      {detail.transcript.segments.map((s, i) => (
-                        <div key={i} className="flex gap-3">
+                      {segments.map((s, i) => (
+                        <div key={i} className={`flex gap-3 rounded-lg ${inRange(s) ? "-mx-2 bg-gold-soft/70 px-2 py-1.5" : ""}`}>
                           <span className="mt-0.5 shrink-0 rounded-full bg-canvas px-2 py-0.5 text-[11px] text-rhino/40">
                             {formatTimestamp(s.start)}
                           </span>
-                          <p className="text-[14px] leading-[1.6] text-rhino/65">{s.text}</p>
+                          <p className="min-w-0 text-[14px] leading-[1.6] text-rhino/65">{s.text}</p>
                         </div>
                       ))}
                     </div>

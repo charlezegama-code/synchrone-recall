@@ -1,20 +1,32 @@
 @import "tailwindcss";
 
 @theme {
-  /* One typeface, per the design system — mono utility below aliases to it too */
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
 
+  /* Anchors */
   --color-indigo: #3f78c5;
   --color-indigo-dim: #557fb8;
   --color-indigo-50: #eef4fb;
   --color-indigo-100: #dbe8f6;
   --color-indigo-600: #3768ab;
-  --color-rhino: #1b2a4a; /* dark text + sidebar bg */
+  --color-rhino: #1b2a4a;
+
+  /* Layered dark surfaces (sidebar / nav) */
+  --color-rhino-deep: #14213b;
+  --color-rhino-raised: #22355c;
   --color-sidebar-muted: #a8b4c8;
-  --color-canvas: #f8f8f8;
+
+  /* Layered light surfaces (content) */
+  --color-canvas: #f3f5f9;
+  --color-surface: #ffffff;
+  --color-surface-2: #f8fafc;
   --color-border-card: #e5e8ed;
   --color-hairline: rgba(27, 42, 74, 0.1);
+
+  /* The one warm accent — state that matters, never decoration */
+  --color-gold: #c8933a;
+  --color-gold-soft: #fbf3e4;
 }
 
 html,
@@ -23,6 +35,7 @@ body {
   color: var(--color-rhino);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 * {
@@ -49,12 +62,19 @@ body {
   background-size: 22px 22px;
 }
 
-/* the single orchestrated entrance moment for a page's content — used once
-   per page mount, never per list item */
+/* Elevation tiers */
+.elev-1 {
+  box-shadow: 0 1px 2px rgba(27, 42, 74, 0.04), 0 1px 1px rgba(27, 42, 74, 0.03);
+}
+.elev-2 {
+  box-shadow: 0 8px 24px -12px rgba(27, 42, 74, 0.18), 0 2px 6px -2px rgba(27, 42, 74, 0.06);
+}
+
+/* One orchestrated entrance per page mount */
 @keyframes page-enter {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
@@ -65,19 +85,48 @@ body {
   animation: page-enter 0.3s ease-out both;
 }
 
-/* card micro-interaction: lift + border tint, no shadow choreography */
+/* Card micro-interaction: lift + soft shadow + thin indigo border, 150ms */
 .card-hover {
-  transition: transform 0.15s ease-out, border-color 0.15s ease-out;
+  transition: transform 0.15s ease-out, border-color 0.15s ease-out, box-shadow 0.15s ease-out;
 }
 .card-hover:hover {
   transform: translateY(-2px);
   border-color: var(--color-indigo);
+  box-shadow: 0 10px 24px -14px rgba(27, 42, 74, 0.28);
 }
 
-/* reused for "you just did something that matters": uploading, or landing on a cited source */
+/* Search focus: subtle inner glow */
+.focus-glow:focus-within {
+  border-color: var(--color-indigo);
+  box-shadow: inset 0 0 0 1px rgba(63, 120, 197, 0.35), 0 0 0 4px rgba(63, 120, 197, 0.1);
+}
+
+/* Processing shimmer sweeping across a card surface */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(63, 120, 197, 0.08) 50%, transparent 80%);
+  animation: shimmer 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Reused "something just happened here" cue */
 @keyframes highlight-sweep {
   0% {
-    background-color: rgba(63, 120, 197, 0.18);
+    background-color: rgba(200, 147, 58, 0.18);
   }
   100% {
     background-color: transparent;
@@ -106,16 +155,33 @@ body {
   animation: float-blob 20s ease-in-out infinite reverse;
 }
 
-@keyframes mic-pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.35);
-  }
-  100% {
-    box-shadow: 0 0 0 16px rgba(220, 38, 38, 0);
-  }
+/* Collapsed-sidebar tooltips */
+.tip {
+  position: relative;
 }
-.record-pulse {
-  animation: mic-pulse 1.6s ease-out infinite;
+.tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  white-space: nowrap;
+  background: var(--color-rhino-deep);
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 9px;
+  border-radius: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease-out, transform 0.12s ease-out;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  z-index: 60;
+}
+.tip:hover::after,
+.tip:focus-visible::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
 }
 
 .scrollbar-thin::-webkit-scrollbar {
