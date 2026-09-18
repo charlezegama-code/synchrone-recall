@@ -23,7 +23,8 @@ const DORMANT = { r: 0x2b / 255, g: 0x48 / 255, b: 0x7a / 255 };
 function makeDotTexture(THREE: any) {
   const c = document.createElement("canvas");
   c.width = c.height = 64;
-  const ctx = c.getContext("2d")!;
+  const ctx = c.getContext("2d");
+  if (!ctx) throw new Error("2D canvas unavailable");
   const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
   // Mostly-solid disc with a short anti-aliased edge: small points otherwise
   // end up being all falloff, which washes the vertex color out to grey on a
@@ -62,11 +63,13 @@ export default function AudioVisualizerOrb({ size, mode, stream, onSettled, fall
 
   useEffect(() => {
     let cancelled = false;
+    const timeout = window.setTimeout(() => !cancelled && setStatus((s) => (s === "loading" ? "failed" : s)), 8000);
     loadThree()
       .then(() => !cancelled && setStatus("ready"))
       .catch(() => !cancelled && setStatus("failed"));
     return () => {
       cancelled = true;
+      window.clearTimeout(timeout);
     };
   }, []);
 
@@ -124,12 +127,9 @@ export default function AudioVisualizerOrb({ size, mode, stream, onSettled, fall
     const host = hostRef.current;
 
     let renderer: any;
+    let cleanup: (() => void) | null = null;
     try {
-      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "low-power" });
-    } catch {
-      setStatus("failed");
-      return;
-    }
+    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "low-power" });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(size, size);
     renderer.setClearColor(0x000000, 0);
@@ -255,7 +255,7 @@ export default function AudioVisualizerOrb({ size, mode, stream, onSettled, fall
     };
     frame();
 
-    return () => {
+    cleanup = () => {
       cancelAnimationFrame(raf);
       geometry.dispose();
       material.dispose();
@@ -263,6 +263,20 @@ export default function AudioVisualizerOrb({ size, mode, stream, onSettled, fall
       renderer.dispose();
       if (renderer.domElement.parentNode === host) host.removeChild(renderer.domElement);
     };
+    } catch (err) {
+      // WebGL disabled, canvas blocked by an extension, GPU process gone…
+      // Degrade to the static fallback instead of taking the page down.
+      console.warn("AudioVisualizerOrb disabled:", err);
+      try {
+        renderer?.dispose?.();
+        if (renderer?.domElement?.parentNode === host) host.removeChild(renderer.domElement);
+      } catch {
+        /* ignore */
+      }
+      setStatus("failed");
+      return;
+    }
+    return () => cleanup?.();
   }, [status, size]);
 
   if (status === "failed") return <>{fallback ?? null}</>;

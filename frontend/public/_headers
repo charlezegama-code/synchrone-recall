@@ -1,0 +1,9 @@
+# Never let a browser hold on to a stale index.html: with SPA fallback, a stale
+# HTML pointing at deleted hashed assets gets HTML back for its .js/.css and
+# renders a blank page. Hashed assets themselves are safe to cache forever.
+/
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
