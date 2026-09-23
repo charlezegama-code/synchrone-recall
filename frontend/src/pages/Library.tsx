@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ThinkingOrb } from "thinking-orbs";
-import { Upload, Clock, Calendar, Search, XCircle, Trash2 } from "lucide-react";
+import { Upload, Clock, Calendar, Search, XCircle, Trash2, Download } from "lucide-react";
 import { api, formatDuration, type RecordingSummary } from "../lib/api";
 import RecordingDetailModal from "../components/RecordingDetailModal";
 
@@ -13,6 +13,7 @@ export default function Library() {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const [params] = useSearchParams();
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -72,6 +73,26 @@ export default function Library() {
     }
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    setError(null);
+    try {
+      const blob = await api.exportRecordings();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "recordings_export.json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError("Export failed. " + String(e));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const filtered = useMemo(() => {
     if (!recordings) return recordings;
     const q = query.trim().toLowerCase();
@@ -88,7 +109,15 @@ export default function Library() {
           <h1 className="text-[36px] font-bold leading-[1.1] tracking-tight text-rhino md:text-[44px]">Library</h1>
           <p className="mt-2 text-[15px] leading-[1.6] text-rhino/50">Every recording, auto-indexed on upload.</p>
         </div>
-        <div>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={handleExport}
+            disabled={exporting || !recordings?.length}
+            className="flex min-h-[44px] items-center gap-2 rounded-full border border-border-card bg-surface px-5 text-[14px] font-semibold text-rhino transition hover:bg-surface-2 disabled:opacity-50"
+          >
+            <Download size={15} />
+            {exporting ? "Exporting…" : "Export"}
+          </button>
           <input
             ref={fileInput}
             type="file"

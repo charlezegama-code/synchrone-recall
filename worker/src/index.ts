@@ -35,6 +35,56 @@ app.get("/api/recordings", async (c) => {
   return c.json({ recordings });
 });
 
+app.get("/api/export", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT r.id, r.status, r.duration_seconds, a.title, t.segments_json
+     FROM recordings r
+     LEFT JOIN analysis a ON a.recording_id = r.id
+     LEFT JOIN transcripts t ON t.recording_id = r.id
+     ORDER BY r.upload_date DESC`
+  ).all();
+
+  const payload = results.map((r: any) => {
+    let segments: Array<{ start: number; end: number; text: string }> = [];
+    if (r.segments_json) {
+      try {
+        segments = JSON.parse(String(r.segments_json));
+      } catch {
+        segments = [];
+      }
+    }
+
+    // A recording only counts as "processed" for export when it actually has
+    // real transcribed segments — anything else (failed, or processed with
+    // no transcript row for some reason) exports as failed with no segments,
+    // per spec, rather than silently emitting an empty processed entry.
+    const hasSegments = Array.isArray(segments) && segments.length > 0;
+    const status: "processed" | "failed" = r.status === "processed" && hasSegments ? "processed" : "failed";
+
+    return {
+      recording_id: r.id,
+      title: r.title ?? r.id,
+      duration_sec: r.duration_seconds ?? 0,
+      // ASSUMPTION: language is not detected/stored anywhere in the pipeline
+      // (Whisper call in lib/ai.ts never captures a language code) — hardcoded
+      // to "en" per the schema's example rather than fabricated per-recording.
+      language: "en",
+      status,
+      segments:
+        status === "failed"
+          ? []
+          : segments.map((s) => ({
+              start: s.start,
+              end: s.end,
+              speaker: null,
+              text: s.text,
+            })),
+    };
+  });
+
+  return c.json(payload, 200, { "Content-Type": "application/json; charset=utf-8" });
+});
+
 app.get("/api/recordings/:id", async (c) => {
   const id = c.req.param("id");
   const recording = await c.env.DB.prepare("SELECT * FROM recordings WHERE id = ?").bind(id).first();
